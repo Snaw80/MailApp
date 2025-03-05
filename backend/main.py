@@ -15,7 +15,7 @@ PASSWORD = os.getenv('PASSWORD')
 IMAP_SERVER = 'imap.gmail.com'
 IMAP_PORT = 993
 
-email_whitelist = ['dan@tldrnewsletter.com']
+email_whitelist = ['exemple@gmail.com']
 
 def get_recent_emails(max_emails=20):
     mail = imaplib.IMAP4_SSL(IMAP_SERVER, IMAP_PORT)

@@ -46,13 +46,13 @@ def get_recent_emails(max_emails=20):
 
             subject = decode_header(msg["Subject"])[0][0]
             subject = subject.decode() if isinstance(subject, bytes) else subject
-            
+
             from_ = decode_header(msg.get("From"))[0][0]
             from_ = from_.decode() if isinstance(from_, bytes) else from_
-
+            
             match = re.search(r'[\w\.-]+@[\w\.-]+', from_)
             if (match is None) or (match.group() not in email_whitelist):
-                continue
+                continue 
 
             body = ""
             if msg.is_multipart():

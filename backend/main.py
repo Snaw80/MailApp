@@ -46,7 +46,7 @@ async def get_newsletters():
         for sender in whitelist_db:
             status, data = mail.search(None, f'FROM "{sender}"')
             if status == 'OK':
-                email_ids = data[0].split()[10:15] # On prend les 5 derniers emails
+                email_ids = data[0].split()[10:15]
                 for num in email_ids:
                     _, data = mail.fetch(num, '(RFC822)')
                     raw_email = data[0][1]

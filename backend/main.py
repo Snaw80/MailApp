@@ -4,6 +4,8 @@ from typing import List
 import imaplib
 import email
 from email.header import decode_header
+from email import policy
+from email.parser import BytesParser
 
 import re
 
@@ -68,6 +70,8 @@ async def get_newsletters():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+
 def decode_subject(subject):
     """Decode the email subject line."""
     decoded_parts = decode_header(subject)
@@ -79,21 +83,38 @@ def decode_subject(subject):
             decoded_subject += part
     return decoded_subject
 
+def extract_email_content(msg):
+    """Extract plain text or HTML content from an email."""
+    if msg.is_multipart():
+        for part in msg.walk():
+            content_type = part.get_content_type()
+            content_disposition = part.get("Content-Disposition", "")
+            
+            if "attachment" in content_disposition:
+                continue
+            
+            if content_type == "text/plain":
+                return part.get_payload(decode=True).decode()
+            elif content_type == "text/html":
+                return part.get_payload(decode=True).decode()
+        
+        return ""
+    else:
+        return msg.get_payload(decode=True).decode()
+
 def process_newsletter(msg):
     subject = decode_subject(msg["Subject"])
-    # Convertit un email en format newsletter standard
+    content = extract_email_content(msg)
+
     return {
         "id": msg["Message-ID"],
         "from": msg["From"],
         "date": msg["Date"],
         "subject": subject,
-        "content": extract_content(msg),
+        "content": content,
         "links": extract_links(msg)
     }
 
-def extract_content(msg):
-    # Logique pour extraire le contenu principal
-    pass
 
 def extract_links(msg):
     # Logique pour extraire les liens

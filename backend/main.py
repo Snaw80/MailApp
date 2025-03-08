@@ -41,12 +41,16 @@ async def get_newsletters():
     try:
         mail = imaplib.IMAP4_SSL(IMAP_SERVER)
         mail.login(EMAIL, PASSWORD)
-        mail.select("inbox")
+        if mail.state != 'AUTH':
+            raise HTTPException(status_code=500, detail="Could not authenticate")
         
+        mail.select("inbox")
+
         for sender in whitelist_db:
             status, data = mail.search(None, f'FROM "{sender}"')
             if status == 'OK':
-                email_ids = data[0].split()[10:15]
+                email_ids = data[0].split()
+                email_ids = email_ids[-10:] # On ne récupère que les 5 derniers emails
                 for num in email_ids:
                     _, data = mail.fetch(num, '(RFC822)')
                     raw_email = data[0][1]
@@ -57,19 +61,32 @@ async def get_newsletters():
         
         mail.close()
         mail.logout()
+        newsletters.reverse()
         
         return {"newsletters": newsletters}
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+def decode_subject(subject):
+    """Decode the email subject line."""
+    decoded_parts = decode_header(subject)
+    decoded_subject = ""
+    for part, encoding in decoded_parts:
+        if isinstance(part, bytes):
+            decoded_subject += part.decode(encoding or "utf-8", errors="replace")
+        else:
+            decoded_subject += part
+    return decoded_subject
+
 def process_newsletter(msg):
+    subject = decode_subject(msg["Subject"])
     # Convertit un email en format newsletter standard
     return {
         "id": msg["Message-ID"],
         "from": msg["From"],
         "date": msg["Date"],
-        "subject": msg["Subject"],
+        "subject": subject,
         "content": extract_content(msg),
         "links": extract_links(msg)
     }

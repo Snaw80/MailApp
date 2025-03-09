@@ -7,6 +7,7 @@ from email.header import decode_header
 from email import policy
 from email.parser import BytesParser
 
+from bs4 import BeautifulSoup
 import re
 
 from dotenv import load_dotenv
@@ -83,24 +84,44 @@ def decode_subject(subject):
             decoded_subject += part
     return decoded_subject
 
+def process_email_content(content):
+    """Process email content to improve formatting and link handling"""
+    # Convert newlines to HTML line breaks
+    content = content.replace('\n', '<br>')
+    
+    # Remove excessive whitespace and non-breaking spaces
+    content = re.sub(r'[\s‌]+', ' ', content)  # Match regular and non-breaking spaces
+    content = re.sub(r'(<br>){2,}', '<br><br>', content)  # Limit consecutive line breaks
+    
+    # Convert plain text links to HTML links
+    content = re.sub(r'(https?://\S+)', r'<a href="\1">\1</a>', content)
+    
+    return content
+
 def extract_email_content(msg):
-    """Extract plain text or HTML content from an email."""
+    """Extract and process email content with improved formatting"""
+    content = ''
     if msg.is_multipart():
         for part in msg.walk():
             content_type = part.get_content_type()
-            content_disposition = part.get("Content-Disposition", "")
-            
-            if "attachment" in content_disposition:
-                continue
-            
-            if content_type == "text/plain":
-                return part.get_payload(decode=True).decode()
-            elif content_type == "text/html":
-                return part.get_payload(decode=True).decode()
-        
-        return ""
+            if content_type in ['text/plain', 'text/html']:
+                payload = part.get_payload(decode=True).decode()
+                if content_type == 'text/plain':
+                    payload = process_email_content(payload)
+                elif content_type == 'text/html':
+                    soup = BeautifulSoup(payload, 'html.parser')
+                    payload = soup.prettify()
+                content += payload
+                break
     else:
-        return msg.get_payload(decode=True).decode()
+        content = msg.get_payload(decode=True).decode()
+        if msg.get_content_type() == 'text/plain':
+            content = process_email_content(content)
+    
+    # Handle footnote references [1], [2], etc.
+    content = re.sub(r'\[(\d+)\]', r'<sup>[\1]</sup>', content)
+    
+    return content
 
 def process_newsletter(msg):
     subject = decode_subject(msg["Subject"])
